@@ -3,6 +3,12 @@ import numpy as np
 import unittest
 import datetime
 
+class C(Serializable):
+
+    def __init__(self, a=7):
+        self.a = a
+        self.b = np.array([5, 6])
+
 class TestSerializable(unittest.TestCase):
 
     def test_simple(self):
@@ -78,6 +84,15 @@ class TestSerializable(unittest.TestCase):
         aa = loads(dumps(a))
         self.assertEqual(type(aa), bytes)
         self.assertEqual(a, aa)
+
+    def test_custom_class(self):
+        c = C(3)
+        s = dumps(c)
+        cc = loads(s)
+        self.assertEqual(cc.a, 3)
+        self.assertEqual(type(cc.b), np.ndarray)
+        self.assertEqual(cc.__class__, C)
+
 
 if __name__ == '__main__':
     unittest.main()

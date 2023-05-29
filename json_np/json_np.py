@@ -10,6 +10,8 @@ import importlib
 import io
 import json
 import numbers
+import traceback
+
 import numpy
 
 
@@ -97,7 +99,7 @@ class Serializable(object):
         """
         def custom(o):
             if isinstance(o, Serializable):
-                module = o.__class__.__module__.split('campil.')[-1]
+                module = o.__class__.__module__.split(".")[-1]
                 # make sure keys are sorted
                 d = collections.OrderedDict()
                 d['meta_class'] = '%s.%s' % (module, o.__class__.__name__)
@@ -143,17 +145,11 @@ class Serializable(object):
         return json.dumps(obj, default=custom, indent=indent)
 
     @staticmethod
-    def from_json(s, objectify=True, mapper=None, encoding="utf-8"):
+    def from_json(s, mapper=None, encoding="utf-8"):
         """Decodes json_plus.
          :param s : the string to decode
-         :param objectify : If True, reconstructs the object hierarchy.
-         :param mapper :
-            - If a dictonary, then the key classes are replaced by the value classes in the
-                decoding.
-            - If a class, then all objects that are not dates or numpy classes are decoded to
-              this class.
-            - If None, then all objects that are not dates or numpy classes are decoded to
-              json_plus.Serializable.
+         :param mapper : A dictionary. key classes are replaced by the value classes in the
+                decoding. Classes not found are replaced by Serializable.
         :param encoding: encoding used for bytes
         :return: the decoded object.
         """
@@ -188,32 +184,27 @@ class Serializable(object):
                 # correct for classes that have migrated from one module to another
                 meta_class = mapper.get(meta_class, meta_class)
                 # separate the module name from the actual class name
-                meta_module, meta_class = meta_class.rsplit('.',1)
+                meta_module, meta_class = meta_class.rsplit('.', 1)
 
             if meta_class is not None:
                 del o['meta_class']
-                if mapper is None:
-                    obj = Serializable()
-                    obj.__dict__.update(o)
-                    o = obj
-                elif isinstance(mapper, dict):
-
-                    if meta_module is not None and objectify:
-                        try:
-                            module = importlib.import_module(meta_module)
-                            cls = getattr(module, meta_class)
-                            obj = cls()
-                            obj.__dict__.update(o)
-                            o = obj
-                        except Exception:
-                            # If an object is unknown, restores it as a member
-                            # of this same class.
-                            obj = Serializable()
-                            obj.__dict__.update(o)
-                            o = obj
+                if meta_module is not None:
+                    meta_class = mapper.get(meta_class, meta_class)
+                    try:
+                        module = importlib.import_module(meta_module)
+                        cls = getattr(module, meta_class)
+                        obj = cls()
+                        obj.__dict__.update(o)
+                        o = obj
+                    except Exception:
+                        # If an object is unknown, restores it as a member
+                        # of this same class.
+                        obj = Serializable()
+                        obj.__dict__.update(o)
+                        o = obj
                 else:
-                    # Map all to the specified class.
-                    obj = mapper()
+                    # Map all to Serializable.
+                    obj = Serializable()
                     obj.__dict__.update(o)
                     o = obj
             elif type(o).__name__ == 'dict':

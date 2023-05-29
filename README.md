@@ -8,7 +8,7 @@ Json for numpy, or if you prefer, json no problems!
 This is a version of Json that can handle also: 
 * Dates
 * Sets
-* numpy nd.array
+* numpy array
 * bytes
 
 There are two ways to use it. 
