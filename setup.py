@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setuptools.setup(
     name = "json_np",
     version = "0.0.1",
-    url = 'https://bitbucket.org/luca_de_alfaro/nqgcs',
+    url = 'https://github.com/lucadealfaro/json_np',
     license = 'BSD',
     author = 'Luca de Alfaro and Massimo Di Pierro',
     author_email = 'luca@dealfaro.com, mdipierro@gmail.com',
