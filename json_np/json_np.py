@@ -18,6 +18,7 @@ import numpy
 class Storage(dict):
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
 
 
 class Serializable(object):
@@ -53,10 +54,7 @@ class Serializable(object):
         return repr(self.__dict__)
 
     def get(self, k, d=None):
-        try:
-            return getattr(self, k)
-        except AttributeError:
-            return d
+        return getattr(self, k, d)
 
     def __eq__(self, other):
         return hasattr(other, '__dict__') and self.__dict__ == other.__dict__
