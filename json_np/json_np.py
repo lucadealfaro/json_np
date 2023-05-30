@@ -1,7 +1,10 @@
 #!/usr/bin/env python
+"""
+Copyright 2014 Camiolog Inc.
+Authors: Luca de Alfaro and Massimo Di Pierro
+"""
 
-# Copyright 2014 Camiolog Inc.
-# Authors: Luca de Alfaro and Massimo Di Pierro
+# pylint: disable=invalid-name,too-many-return-statements
 
 import base64
 import collections
@@ -10,17 +13,22 @@ import importlib
 import io
 import json
 import numbers
-import traceback
 
 import numpy
 
 
 class Storage(dict):
+    """
+    Like a dict but attributes can be accessed
+    with obj.name instead obj[name]
+    """
+
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
 
 
-class Serializable(object):
+class Serializable:
     """
     If a class subclasses Serializable, then json_plus
     will serialize its objects.
@@ -32,36 +40,53 @@ class Serializable(object):
 
     # We mimick a dict.
     def __getitem__(self, key):
+        """Get a value given a corresponding key."""
         return getattr(self, key)
+
     def __setitem__(self, key, value):
+        """Set a value for the correspoding key."""
         setattr(self, key, value)
+
     def __delitem__(self, key):
+        """Delete a value given a corresponding key."""
         del self.__dict__[key]
+
     def keys(self):
+        """Returns an iterator over keys."""
         return self.__dict__.keys()
+
     def items(self):
+        """Returns an iterator over items."""
         return self.__dict__.items()
+
     def values(self):
+        """Returns an interator over values."""
         return self.__dict__.values()
-    def update(self, d):
-        self.__dict__.update(d)
+
+    def update(self, data):
+        """Update values from provided data dict."""
+        self.__dict__.update(data)
+
     def __len__(self):
+        """Returns the number of items stored."""
         return len(self.__dict__)
+
     def __contains__(self, item):
+        """Returns True if the item is stored, else otherwise."""
         return item in self.__dict__
+
     def __repr__(self):
+        """Returns a string representation for the object."""
         return repr(self.__dict__)
 
-    def get(self, k, d=None):
-        try:
-            return getattr(self, k)
-        except AttributeError:
-            return d
+    def get(self, key, default=None):
+        """Returns the value corresponding to the key or default value."""
+        return getattr(self, key, default)
 
     def __eq__(self, other):
-        return hasattr(other, '__dict__') and self.__dict__ == other.__dict__
+        return hasattr(other, "__dict__") and self.__dict__ == other.__dict__
 
-    def to_json(self, pack_ndarray=True, tolerant=True, indent=2, encoding='utf-8'):
+    def to_json(self, pack_ndarray=True, tolerant=True, indent=2, encoding="utf-8"):
         """
         Dumps itself to a string.
         :param pack_ndarray: Whether to serialize numpy arrays.  Default is yes.
@@ -70,13 +95,21 @@ class Serializable(object):
         :param encoding: encoding used for bytes
         :return: The serialized object.
         """
-        return Serializable.dumps(self, pack_ndarray=pack_ndarray, tolerant=tolerant, indent=indent, encoding=encoding)
+        return Serializable.dumps(
+            self,
+            pack_ndarray=pack_ndarray,
+            tolerant=tolerant,
+            indent=indent,
+            encoding=encoding,
+        )
 
     @staticmethod
-    def dump(obj, fp, pack_ndarray=True, tolerant=True, indent=2, encoding='utf-8'):
+    def dump(
+        obj, stream, pack_ndarray=True, tolerant=True, indent=2, encoding="utf-8"
+    ):  # pylint: disable=too-many-arguments
         """
         Dumps an object to a string.
-        :param fp: file where to dump the result.
+        :param stream: file where to dump the result.
         :param obj: The object to serialize.
         :param pack_ndarray: Whether to serialize numpy arrays.  Default is yes.
         :param tolerant: Ignore attributes that cannot be serialized.
@@ -84,10 +117,18 @@ class Serializable(object):
         :param encoding: encoding used for bytes
         :return: The serialized object.
         """
-        return fp.write(Serializable.dumps(obj, pack_ndarray=pack_ndarray, tolerant=tolerant, indent=indent, encoding=encoding))
+        return stream.write(
+            Serializable.dumps(
+                obj,
+                pack_ndarray=pack_ndarray,
+                tolerant=tolerant,
+                indent=indent,
+                encoding=encoding,
+            )
+        )
 
     @staticmethod
-    def dumps(obj, pack_ndarray=True, tolerant=True, indent=2, encoding='utf-8'):
+    def dumps(obj, pack_ndarray=True, tolerant=True, indent=2, encoding="utf-8"):
         """
         Dumps an object to a string.
         :param obj: The object to serialize.
@@ -97,51 +138,61 @@ class Serializable(object):
         :param encoding: encoding used for bytes
         :return: The serialized object.
         """
+
         def custom(o):
             if isinstance(o, Serializable):
                 module = o.__class__.__module__.split(".")[-1]
                 # make sure keys are sorted
                 d = collections.OrderedDict()
-                d['meta_class'] = '%s.%s' % (module, o.__class__.__name__)
-                d.update(item for item in o.__dict__.items()
-                                 if not item[0].startswith('_'))
+                d["meta_class"] = "%s.%s" % (module, o.__class__.__name__)
+                d.update(
+                    item for item in o.__dict__.items() if not item[0].startswith("_")
+                )
                 return d
-            elif isinstance(o, bytes):
-                # Bytes are encoded.
-                d = {'meta_class': 'bytes',
-                    'bytes': o.decode(encoding)}
-                return d
-            elif isinstance(o, datetime.datetime):
-                d = {'meta_class': 'datetime.datetime',
-                     'date': o.isoformat()}
-                return d
-            elif isinstance(o, set):
-                d = {'meta_class': 'set',
-                     'set': list(o)}
-                return d
-            elif isinstance(o, io.FileIO):
-                return '<file %r>' % o.name
 
-            elif pack_ndarray and isinstance(o, numpy.ndarray):
-                d = {'meta_class': 'numpy.ndarray',
-                     'dtype': str(o.dtype),
-                     'shape': o.shape,
-                     'data': base64.b64encode(o.tobytes())}
+            if isinstance(o, bytes):
+                # Bytes are encoded.
+                d = {"meta_class": "bytes", "bytes": o.decode(encoding)}
+                return d
+
+            if isinstance(o, datetime.datetime):
+                d = {"meta_class": "datetime.datetime", "date": o.isoformat()}
+                return d
+
+            if isinstance(o, set):
+                d = {"meta_class": "set", "set": list(o)}
+                return d
+
+            if isinstance(o, io.FileIO):
+                return "<file %r>" % o.name
+
+            if pack_ndarray and isinstance(o, numpy.ndarray):
+                d = {
+                    "meta_class": "numpy.ndarray",
+                    "dtype": str(o.dtype),
+                    "shape": o.shape,
+                    "data": base64.b64encode(o.tobytes()),
+                }
                 return d
 
             # Normal Python types are unchanged
-            elif isinstance(o, (int, str, float, bool, list, dict, tuple)):
+            if isinstance(o, (int, str, float, bool, list, dict, tuple)):
                 return o
-            elif isinstance(o, numbers.Integral):
+
+            if isinstance(o, numbers.Integral):
                 return int(o)
-            elif isinstance(o, numbers.Real):
+
+            if isinstance(o, numbers.Real):
                 return float(o)
-            elif isinstance(o, bool):
+
+            if isinstance(o, bool):
                 return bool(o)
-            elif tolerant:
+
+            if tolerant:
                 return None
-            else:
-                raise ValueError("Cannot encode in json object %r" % o)
+
+            raise ValueError("Cannot encode in json object %r" % o)
+
         return json.dumps(obj, default=custom, indent=indent)
 
     @staticmethod
@@ -154,40 +205,41 @@ class Serializable(object):
         :return: the decoded object.
         """
         mapper = mapper or {}
+
         def hook(o):
-            meta_module, meta_class = None, o.get('meta_class')
-            if meta_class in ('Datetime', 'datetime.datetime'):
+            meta_module, meta_class = None, o.get("meta_class")
+            if meta_class in ("Datetime", "datetime.datetime"):
                 # 'Datetime' included for backward compatibility
-                try:
-                    tmp = datetime.datetime.strptime(
-                        o['date'], '%Y-%m-%dT%H:%M:%S.%f')
-                except Exception:
-                    tmp = datetime.datetime.strptime(
-                        o['date'], '%Y-%m-%dT%H:%M:%S')
-                return tmp
-            elif meta_class == 'set':
-                return set(o['set'])
-            elif meta_class == 'bytes':
-                return o['bytes'].encode(encoding)
+                fmt = "%Y-%m-%dT%H:%M:%S"
+                if len(o["date"]) > 19:
+                    fmt += ".%f"
+                return datetime.datetime.strptime(o["date"], fmt)
+
+            if meta_class == "set":
+                return set(o["set"])
+
+            if meta_class == "bytes":
+                return o["bytes"].encode(encoding)
+
             # Numpy arrays.
-            elif meta_class == 'numpy.ndarray':
-                data = base64.b64decode(o['data'])
-                dtype = o['dtype']
-                shape = o['shape']
+            if meta_class == "numpy.ndarray":
+                data = base64.b64decode(o["data"])
+                dtype = o["dtype"]
+                shape = o["shape"]
                 v = numpy.frombuffer(data, dtype=dtype)
                 v = v.reshape(shape)
                 obj = v.copy()
                 obj.flags.writeable = True
                 return obj
 
-            elif meta_class and '.' in meta_class:
+            if meta_class and "." in meta_class:
                 # correct for classes that have migrated from one module to another
                 meta_class = mapper.get(meta_class, meta_class)
                 # separate the module name from the actual class name
-                meta_module, meta_class = meta_class.rsplit('.', 1)
+                meta_module, meta_class = meta_class.rsplit(".", 1)
 
             if meta_class is not None:
-                del o['meta_class']
+                del o["meta_class"]
                 if meta_module is not None:
                     meta_class = mapper.get(meta_class, meta_class)
                     try:
@@ -196,7 +248,7 @@ class Serializable(object):
                         obj = cls()
                         obj.__dict__.update(o)
                         o = obj
-                    except Exception:
+                    except Exception:  # pylint: disable=broad-except
                         # If an object is unknown, restores it as a member
                         # of this same class.
                         obj = Serializable()
@@ -207,7 +259,7 @@ class Serializable(object):
                     obj = Serializable()
                     obj.__dict__.update(o)
                     o = obj
-            elif type(o).__name__ == 'dict':
+            elif type(o).__name__ == "dict":
                 # For convenience we deserialize dict into Storage.
                 o = Storage(o)
             return o
@@ -215,12 +267,14 @@ class Serializable(object):
         return json.loads(s, object_hook=hook)
 
     @staticmethod
-    def loads(s):
-        return Serializable.from_json(s)
+    def loads(string):
+        """Loads json from input string."""
+        return Serializable.from_json(string)
 
     @staticmethod
-    def load(fp):
-        return Serializable.loads(fp.read())
+    def load(stream):
+        """Loads json from input stream."""
+        return Serializable.loads(stream.read())
 
 
 loads = Serializable.loads
