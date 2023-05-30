@@ -9,6 +9,19 @@ class C(Serializable):
         self.a = a
         self.b = np.array([5, 6])
 
+class D(object):
+
+    def __init__(self, a=0):
+        self.a = a
+        self._b = 3
+
+class E(object):
+
+    def __init__(self, a):
+        self.a = a
+        self._b = 3
+
+
 class TestSerializable(unittest.TestCase):
 
     def test_simple(self):
@@ -93,6 +106,17 @@ class TestSerializable(unittest.TestCase):
         self.assertEqual(type(cc.b), np.ndarray)
         self.assertEqual(cc.__class__, C)
 
+    def test_arbitrary_class(self):
+        d = D(3)
+        s = dumps(d)
+        dd = loads(s)
+        self.assertEqual(dd.a, 3)
+
+    def test_class_with_required_args(self):
+        e = E(5)
+        ee = loads(dumps(e))
+        self.assertTrue(isinstance(ee, Serializable))
+        self.assertFalse(isinstance(ee, E))
 
 if __name__ == '__main__':
     unittest.main()

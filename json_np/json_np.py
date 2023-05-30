@@ -38,7 +38,7 @@ class Serializable:
     - all attributes that are of a Serializable class.
     """
 
-    # We mimick a dict.
+    # We mimic a dict.
     def __getitem__(self, key):
         """Get a value given a corresponding key."""
         return getattr(self, key)
@@ -128,7 +128,8 @@ class Serializable:
         )
 
     @staticmethod
-    def dumps(obj, pack_ndarray=True, tolerant=True, indent=2, encoding="utf-8"):
+    def dumps(obj, pack_ndarray=True, tolerant=True, indent=2, encoding="utf-8",
+              serializable_only=False):
         """
         Dumps an object to a string.
         :param obj: The object to serialize.
@@ -136,13 +137,14 @@ class Serializable:
         :param tolerant: Ignore attributes that cannot be serialized.
         :param indent: Indentation of resulting json.
         :param encoding: encoding used for bytes
+        :param serializable_only: if True, only classes of Serializable subclass
+            will be serialized.
         :return: The serialized object.
         """
 
         def custom(o):
             if isinstance(o, Serializable):
                 module = o.__class__.__module__.split(".")[-1]
-                # make sure keys are sorted
                 d = collections.OrderedDict()
                 d["meta_class"] = "%s.%s" % (module, o.__class__.__name__)
                 d.update(
@@ -187,6 +189,16 @@ class Serializable:
 
             if isinstance(o, bool):
                 return bool(o)
+
+            if isinstance(o, object) and not serializable_only:
+                # This takes care of arbitrary objects.
+                module = o.__class__.__module__.split(".")[-1]
+                d = collections.OrderedDict()
+                d["meta_class"] = "%s.%s" % (module, o.__class__.__name__)
+                d.update(
+                    item for item in o.__dict__.items() if not item[0].startswith("_")
+                )
+                return d
 
             if tolerant:
                 return None
